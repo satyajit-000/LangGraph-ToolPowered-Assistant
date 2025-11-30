@@ -8,3 +8,5 @@ __pycache__/
 # Databases
 *.db*
 
+# virual env
+venv/
