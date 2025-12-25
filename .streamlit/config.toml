@@ -1,0 +1,8 @@
+
+[theme]
+primaryColor="#388E3C"              # Darker green for primary elements
+backgroundColor="#121921"           # Deep, almost black, bluish-gray background
+secondaryBackgroundColor="#1C2833"  # Slightly lighter dark bluish-gray for secondary sections
+textColor="#EAEAEA"                 # Very light gray for contrast and readability
+font="sans serif"                   # Clean, modern font style
+
