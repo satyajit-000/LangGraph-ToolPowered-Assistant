@@ -1,5 +1,5 @@
 import sqlite3, datetime
-from typing import Optional
+from typing import Literal, Optional, List, Dict, Any
 
 conn = sqlite3.connect("chatbot.db", check_same_thread=False)
 
@@ -9,8 +9,10 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         first_name VARCHAR(20) NOT NULL,
         last_name VARCHAR(20) DEFAULT NULL,
-        email TEXT UNIQUE,
-        password_hash TEXT
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
+        is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0,1))     
     );
     """)
 
@@ -37,19 +39,51 @@ def init_db():
         (datetime.datetime.now(datetime.timezone.utc).isoformat(),),
     )
 
+    conn.row_factory = sqlite3.Row
     conn.commit()
 
 
 # ---------- Chat room helpers ----------
 
+
+def execute_select_query(
+    select_query: str,
+    parameters: tuple = (),
+    fetch: Literal["one", "all", "many"] = "all",
+    many_size: int = 10
+) -> Optional[Dict[str, Any] | List[Dict[str, Any]]]:
+
+    curr = conn.execute(select_query, parameters)
+
+    try:
+        match(fetch):
+            case "one":
+                row = curr.fetchone()
+                return dict(row) if row else None
+
+            case "many":
+                rows = curr.fetchmany(many_size)
+                return [dict(row) for row in rows]
+
+            case "all":  # fetch == "all"
+                rows = curr.fetchall()
+                return [dict(row) for row in rows]
+            
+            case _:
+                raise ValueError(f"Invalid fetch mode: {fetch}")
+
+
+    finally:
+        curr.close()
+
+
 def get_thread_title(thread_id: str, user_id: int) -> Optional[str]:
-    cur = conn.cursor()
-    cur.execute(
+    row = execute_select_query(
         "SELECT thread_title FROM chat_rooms WHERE thread_id=? AND user_id=?",
-        (thread_id, user_id)
+        (thread_id, user_id),
+        fetch="one"
     )
-    row = cur.fetchone()
-    return row[0] if row else None
+    return row["thread_title"] if row else None
 
 
 def set_thread_title(thread_id: str, user_id: int, title: str):
@@ -72,31 +106,23 @@ def set_thread_title(thread_id: str, user_id: int, title: str):
 
 
 def get_user_rooms(user_id: int):
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT thread_id, thread_title FROM chat_rooms WHERE user_id=? ORDER BY created_at DESC",
-        (user_id,)
+    return execute_select_query(
+        """
+        SELECT thread_id, thread_title
+        FROM chat_rooms
+        WHERE user_id=?
+        ORDER BY created_at DESC
+        """,
+        (user_id,),
+        fetch="all"
     )
-    return cur.fetchall()
 
 def get_user_details(user_id: int):
-    cur = conn.cursor()
-    cur.execute(
-        'SELECT first_name, last_name, email FROM users WHERE id=?',
-        (user_id,)
+    return execute_select_query(
+        "SELECT first_name, last_name, email, is_active, is_admin FROM users WHERE id=?",
+        (user_id,),
+        fetch="one"
     )
-    row = cur.fetchone()
-
-    if row is None:
-        return None
-    
-    first_name, last_name, email = row
-    
-    return {
-        'first_name': first_name,
-        'last_name': last_name,
-        'email': email,
-    }
 
 
 def get_connection():

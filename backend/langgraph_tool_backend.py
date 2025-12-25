@@ -200,10 +200,3 @@ def get_chat_history(thread_id: str, user_id: int):
 
     return history
 
-def get_user_threads(user_id: int):
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT thread_id, thread_title FROM chat_rooms WHERE user_id=? ORDER BY created_at DESC",
-        (user_id,)
-    )
-    return cur.fetchall()

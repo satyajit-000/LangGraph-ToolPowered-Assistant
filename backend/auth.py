@@ -77,7 +77,6 @@ def create_reset_token(email: str) -> str:
         (email,),
     )
     row = cur.fetchone()
-    print(row)
     if not row:
         raise ValueError("Account doesn't exists")
     token, expires_at = row

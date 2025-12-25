@@ -5,7 +5,7 @@ import streamlit as st
 from backend.langgraph_tool_backend import (
     get_chat_stream,
     get_chat_history,
-    get_user_threads,
+    get_user_rooms,
     get_thread_title,
     get_user_details,
     AIMessage,
@@ -209,15 +209,20 @@ def reset_chat():
     add_thread(thread_id)
 
 def add_thread(thread_id):
-    if thread_id not in (threadId for threadId, _ in st.session_state['chat_threads']):
-        st.session_state['chat_threads'].insert(0,(thread_id, None))
+    if thread_id not in st.session_state['thread_ids']:
+        st.session_state['chat_threads'].insert(0, {'thread_id': thread_id, 'thread_title': None})
+        st.session_state['thread_ids'].add(thread_id)
 
 # ---------------------- LOAD USER THREADS ----------------------
-st.session_state['chat_threads'] = get_user_threads(user_id)
+st.session_state['chat_threads'] = get_user_rooms(user_id)
+
+if 'thread_ids' not in st.session_state:
+    st.session_state['thread_ids'] = {t['thread_id'] for t in st.session_state['chat_threads']}
+
 
 if 'thread_id' not in st.session_state or st.session_state['thread_id'] is None:
     threads = st.session_state['chat_threads']
-    st.session_state['thread_id'] = threads[0][0] if threads else generate_thread_id()
+    st.session_state['thread_id'] = threads[0]['thread_id'] if threads else generate_thread_id()
 
 st.session_state['message_history'] = get_chat_history(
     st.session_state['thread_id'], user_id
@@ -317,7 +322,8 @@ def stripped(s: str, max_len = 30):
 with st.sidebar:
     with st.container(border=True):
         st.header('My Conversations')
-        for thread_id, thread_title in st.session_state['chat_threads']:
+        for thread in st.session_state['chat_threads']:
+            thread_id, thread_title =  thread['thread_id'], thread['thread_title']
             thread_title = thread_title or get_thread_title(thread_id, user_id)
             if not thread_title:
                 continue
